@@ -10,9 +10,10 @@ import {
   BookOpen,
   User,
   X,
-  Clock,
   Wallet,
   Receipt,
+  Clock,
+  BookCheck,
 } from "lucide-react";
 
 import { supabase } from "../lib/supabase";
@@ -57,7 +58,11 @@ const calculateLateDays = (dueDate, returnDate) => {
   return Math.max(0, difference);
 };
 
-export default function Pengembalian() {
+export default function Pengembalian({ userRole }) {
+  const canManage =
+    userRole === "tim_pengembang" ||
+    userRole === "pustakawan";
+
   const [returns, setReturns] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedReturn, setSelectedReturn] = useState(null);
@@ -66,7 +71,14 @@ export default function Pengembalian() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
-  // Mengambil data transaksi dari Supabase
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+
+    setTimeout(() => {
+      setNotification(null);
+    }, 3500);
+  };
+
   const loadData = async () => {
     setLoading(true);
 
@@ -121,6 +133,7 @@ export default function Pengembalian() {
       setReturns(formattedReturns);
     } catch (error) {
       console.error("Gagal mengambil data pengembalian:", error);
+
       showNotification(
         "warning",
         error.message || "Gagal mengambil data dari database."
@@ -134,15 +147,6 @@ export default function Pengembalian() {
     loadData();
   }, []);
 
-  const showNotification = (type, message) => {
-    setNotification({ type, message });
-
-    setTimeout(() => {
-      setNotification(null);
-    }, 3500);
-  };
-
-  // Menghitung status dan denda setiap transaksi
   const processedReturns = useMemo(() => {
     const today = getToday();
 
@@ -164,8 +168,6 @@ export default function Pengembalian() {
         displayStatus = "dipinjam";
       }
 
-      // Denda transaksi aktif merupakan perkiraan.
-      // Denda final tersimpan setelah buku dikembalikan.
       const fineAmount = isReturned
         ? item.denda
         : lateDays * DENDA_PER_HARI;
@@ -195,7 +197,6 @@ export default function Pengembalian() {
     );
   }, [processedReturns, search]);
 
-  // Ringkasan transaksi
   const borrowedCount = processedReturns.filter(
     (item) => item.displayStatus === "dipinjam"
   ).length;
@@ -208,7 +209,10 @@ export default function Pengembalian() {
     (item) => item.displayStatus === "dikembalikan"
   ).length;
 
-  // Total denda yang sudah benar-benar tercatat di database
+  const estimatedFine = processedReturns
+    .filter((item) => item.displayStatus !== "dikembalikan")
+    .reduce((total, item) => total + item.fineAmount, 0);
+
   const totalFine = processedReturns
     .filter((item) => item.displayStatus === "dikembalikan")
     .reduce((total, item) => total + item.denda, 0);
@@ -219,6 +223,9 @@ export default function Pengembalian() {
   ).length;
 
   const openReturnModal = (item) => {
+    if (!canManage) return;
+    if (item.displayStatus === "dikembalikan") return;
+
     setSelectedReturn(item);
     setReturnDate(getToday());
   };
@@ -229,8 +236,9 @@ export default function Pengembalian() {
     setSelectedReturn(null);
   };
 
-  // Menyimpan pengembalian dan denda ke Supabase
   const processReturn = async () => {
+    if (!canManage) return;
+
     if (!selectedReturn || !returnDate) {
       showNotification("warning", "Tanggal pengembalian harus diisi.");
       return;
@@ -298,9 +306,12 @@ export default function Pengembalian() {
   const previewFine = previewLateDays * DENDA_PER_HARI;
 
   return (
-    <div className="book-page">
-      <div className="book-page-header">
+    <div className="page-content">
+      <div className="page-heading">
         <div>
+          <span className="page-breadcrumb">
+            Menu Utama / Pengembalian
+          </span>
           <h1>Pengembalian Buku</h1>
           <p>
             Kelola transaksi, riwayat pengembalian, dan rekap denda buku
@@ -309,70 +320,60 @@ export default function Pengembalian() {
         </div>
       </div>
 
-      {/* Ringkasan transaksi */}
-      <div className="member-summary-grid">
-        <div className="member-summary-card">
-          <div className="member-summary-icon blue">
-            <BookOpen size={21} />
-          </div>
-          <div>
-            <span>Sedang Dipinjam</span>
-            <h2>{borrowedCount}</h2>
-          </div>
+      <div className="book-summary">
+        <div>
+          <BookOpen size={22} />
+          <span>Sedang Dipinjam</span>
+          <strong>{borrowedCount}</strong>
         </div>
 
-        <div className="member-summary-card">
-          <div className="member-summary-icon orange">
-            <AlertTriangle size={21} />
-          </div>
-          <div>
-            <span>Terlambat</span>
-            <h2>{lateCount}</h2>
-          </div>
+        <div>
+          <Clock size={22} />
+          <span>Terlambat</span>
+          <strong>{lateCount}</strong>
         </div>
 
-        <div className="member-summary-card">
-          <div className="member-summary-icon green">
-            <CheckCircle size={21} />
-          </div>
-          <div>
-            <span>Sudah Dikembalikan</span>
-            <h2>{returnedCount}</h2>
-          </div>
+        <div>
+          <BookCheck size={22} />
+          <span>Sudah Dikembalikan</span>
+          <strong>{returnedCount}</strong>
         </div>
 
-        <div className="member-summary-card">
-          <div className="member-summary-icon orange">
-            <Wallet size={21} />
-          </div>
-          <div>
-            <span>Total Denda Tercatat</span>
-            <h2>{formatRupiah(totalFine)}</h2>
-          </div>
+        <div>
+          <Wallet size={22} />
+          <span>Estimasi Denda Berjalan</span>
+          <strong>{formatRupiah(estimatedFine)}</strong>
         </div>
 
-        <div className="member-summary-card">
-          <div className="member-summary-icon blue">
-            <Receipt size={21} />
-          </div>
-          <div>
-            <span>Transaksi Kena Denda</span>
-            <h2>{finedTransactions}</h2>
-          </div>
+        <div>
+          <Receipt size={22} />
+          <span>Total Denda Tercatat</span>
+          <strong>{formatRupiah(totalFine)}</strong>
+        </div>
+
+        <div>
+          <AlertTriangle size={22} />
+          <span>Transaksi Kena Denda</span>
+          <strong>{finedTransactions}</strong>
         </div>
       </div>
 
-      <div className="book-table-card">
-        <div className="book-table-heading">
+      <section className="panel book-panel">
+        <div className="book-toolbar">
           <div>
             <h3>Daftar Pengembalian</h3>
             <p>
               Tarif denda keterlambatan: Rp500 per hari untuk setiap buku.
             </p>
+
+            <span className="member-total-badge">
+              {filteredReturns.length} Transaksi
+            </span>
           </div>
 
-          <div className="book-search">
-            <Search size={18} />
+          <div className="search-box book-search">
+            <Search size={17} />
+
             <input
               type="text"
               placeholder="Cari kode, nama, atau judul buku..."
@@ -383,8 +384,9 @@ export default function Pengembalian() {
             {search && (
               <button
                 type="button"
-                onClick={() => setSearch("")}
                 className="search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Hapus pencarian"
               >
                 <X size={16} />
               </button>
@@ -392,26 +394,29 @@ export default function Pengembalian() {
           </div>
         </div>
 
-        <div className="book-table-wrapper">
-          <table className="book-table">
+        <div className="table-scroll">
+          <table>
             <thead>
               <tr>
-                <th>No.</th>
-                <th>Kode Peminjaman</th>
-                <th>Anggota</th>
-                <th>Judul Buku</th>
-                <th>Tanggal Pinjam</th>
-                <th>Batas Kembali</th>
-                <th>Status</th>
-                <th>Denda</th>
-                <th>Aksi</th>
+                <th>NO.</th>
+                <th>KODE PEMINJAMAN</th>
+                <th>ANGGOTA</th>
+                <th>JUDUL BUKU</th>
+                <th>TANGGAL PINJAM</th>
+                <th>BATAS KEMBALI</th>
+                <th>STATUS</th>
+                <th>DENDA</th>
+                {canManage && <th>AKSI</th>}
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="book-empty">
+                  <td
+                    colSpan={canManage ? 9 : 8}
+                    className="empty-data"
+                  >
                     Memuat data dari database...
                   </td>
                 </tr>
@@ -425,22 +430,15 @@ export default function Pengembalian() {
                     </td>
 
                     <td>
-                      <div className="loan-person-cell">
-                        <div className="loan-avatar">
-                          <User size={16} />
-                        </div>
-                        <div>
-                          <strong>{item.nama}</strong>
-                          <small>NIS: {item.nis}</small>
-                        </div>
-                      </div>
+                      <strong>{item.nama}</strong>
+                      <br />
+                      <span>NIS: {item.nis}</span>
                     </td>
 
                     <td>
-                      <div className="loan-book-cell">
-                        <strong>{item.buku}</strong>
-                        <small>{item.kodeBuku}</small>
-                      </div>
+                      <strong>{item.buku}</strong>
+                      <br />
+                      <span>{item.kodeBuku}</span>
                     </td>
 
                     <td>{formatDate(item.tanggalPinjam)}</td>
@@ -452,15 +450,15 @@ export default function Pengembalian() {
                           item.displayStatus === "dikembalikan"
                             ? "active"
                             : item.displayStatus === "terlambat"
-                            ? "late"
-                            : ""
+                              ? "late"
+                              : ""
                         }`}
                       >
                         {item.displayStatus === "dikembalikan"
                           ? "Dikembalikan"
                           : item.displayStatus === "terlambat"
-                          ? "Terlambat"
-                          : "Dipinjam"}
+                            ? "Terlambat"
+                            : "Dipinjam"}
                       </span>
 
                       {item.displayStatus === "dikembalikan" && (
@@ -494,29 +492,34 @@ export default function Pengembalian() {
                         )}
                     </td>
 
-                    <td>
-                      {item.displayStatus !== "dikembalikan" ? (
-                        <button
-                          type="button"
-                          className="edit-action"
-                          onClick={() => openReturnModal(item)}
-                          title="Proses pengembalian"
-                        >
-                          <RotateCcw size={16} />
-                          Kembalikan
-                        </button>
-                      ) : (
-                        <span className="return-completed">
-                          <CheckCircle size={16} />
-                          Selesai
-                        </span>
-                      )}
-                    </td>
+                    {canManage && (
+                      <td>
+                        {item.displayStatus !== "dikembalikan" ? (
+                          <button
+                            type="button"
+                            className="edit-action"
+                            onClick={() => openReturnModal(item)}
+                            title="Proses pengembalian"
+                          >
+                            <RotateCcw size={16} />
+                            Kembalikan
+                          </button>
+                        ) : (
+                          <span className="return-completed">
+                            <CheckCircle size={16} />
+                            Selesai
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="book-empty">
+                  <td
+                    colSpan={canManage ? 9 : 8}
+                    className="empty-data"
+                  >
                     Tidak ada data transaksi yang ditemukan.
                   </td>
                 </tr>
@@ -528,10 +531,9 @@ export default function Pengembalian() {
         <div className="book-table-footer">
           Menampilkan {filteredReturns.length} dari {returns.length} transaksi
         </div>
-      </div>
+      </section>
 
-      {/* Modal pengembalian */}
-      {selectedReturn && (
+      {canManage && selectedReturn && (
         <div className="book-modal-overlay">
           <div className="book-modal">
             <div className="book-modal-heading">
@@ -652,7 +654,6 @@ export default function Pengembalian() {
         </div>
       )}
 
-      {/* Notifikasi */}
       {notification && (
         <div
           className={`book-notification ${

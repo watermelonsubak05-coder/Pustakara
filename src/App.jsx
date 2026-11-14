@@ -9,7 +9,6 @@ import {
   ChartNoAxesCombined,
   Settings,
   Search,
-  Bell,
   ChevronDown,
   BookMarked,
   BookCheck,
@@ -18,13 +17,17 @@ import {
   ArrowUpRight,
   MoreHorizontal,
   X,
+  CalendarCheck,
 } from "lucide-react";
 
+import NotificationBell from "./components/NotificationBell";
 import "./App.css";
 import { supabase } from "./lib/supabase";
 
+import Login from "./pages/Login";
 import DataBuku from "./pages/DataBuku";
 import DataAnggota from "./pages/DataAnggota";
+import KunjunganPerpustakaan from "./pages/KunjunganPerpustakaan";
 import Peminjaman from "./pages/Peminjaman";
 import Pengembalian from "./pages/Pengembalian";
 import Reservasi from "./pages/ReservasiBuku";
@@ -36,6 +39,7 @@ const menu = [
   { name: "Dashboard", icon: LayoutDashboard },
   { name: "Data Buku", icon: BookOpen },
   { name: "Data Anggota", icon: Users },
+  { name: "Kunjungan Perpustakaan", icon: CalendarCheck },
   { name: "Peminjaman", icon: ArrowLeftRight },
   { name: "Pengembalian", icon: BookCheck },
   { name: "Reservasi Buku", icon: ClipboardList },
@@ -78,7 +82,9 @@ function App() {
   const [globalSearch, setGlobalSearch] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  // Mengambil logo Pustakara dari Supabase
+  const [userProfile, setUserProfile] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [logoUrl, setLogoUrl] = useState("");
 
   const [dashboardData, setDashboardData] = useState({
@@ -90,6 +96,115 @@ function App() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
 
+  // Memuat logo PUSTAKARA dari database
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLogo = async () => {
+      const { data, error } = await supabase
+        .from("library_settings")
+        .select("logo_url")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Gagal memuat logo:", error);
+        return;
+      }
+
+      if (mounted) {
+        setLogoUrl(data?.logo_url || "");
+      }
+    };
+
+    loadLogo();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Memeriksa sesi login yang tersimpan
+  useEffect(() => {
+    let mounted = true;
+
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Gagal memeriksa sesi:", error);
+      }
+
+      if (data?.session) {
+        const { data: profile, error: profileError } =
+          await supabase
+            .from("user_profiles")
+            .select("username, role")
+            .eq("id", data.session.user.id)
+            .single();
+
+        if (profileError) {
+          console.error("Gagal memuat profil:", profileError);
+          await supabase.auth.signOut();
+        } else if (mounted) {
+          setUserProfile(profile);
+        }
+      }
+
+      if (mounted) {
+        setAuthLoading(false);
+      }
+    };
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" && mounted) {
+        setUserProfile(null);
+        setActivePage("Dashboard");
+        setDashboardData({
+          books: [],
+          members: [],
+          loans: [],
+        });
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Menentukan hak akses pengguna
+  const isDeveloper = userProfile?.role === "tim_pengembang";
+  const isLibrarian = userProfile?.role === "pustakawan";
+  const isPrincipal = userProfile?.role === "kepala_sekolah";
+
+  const canManage = isDeveloper || isLibrarian;
+  const isValidRole = isDeveloper || isLibrarian || isPrincipal;
+
+  // Jika role tidak dikenali, keluarkan akun
+  useEffect(() => {
+    if (userProfile && !isValidRole) {
+      supabase.auth.signOut();
+    }
+  }, [userProfile, isValidRole]);
+
+  // Menampilkan menu sesuai hak akses
+  const visibleMenus = menu.filter((item) => {
+    if (item.name === "Pengaturan") {
+      return isDeveloper;
+    }
+
+    return true;
+  });
+
+  const availableMenus = visibleMenus.filter((item) => item.name);
+
+  // Mengambil data dashboard setelah login
   const loadDashboard = async () => {
     setDashboardLoading(true);
     setDashboardError("");
@@ -122,44 +237,37 @@ function App() {
   };
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (userProfile && isValidRole) {
+      loadDashboard();
+    }
+  }, [userProfile, isValidRole]);
 
-  // Memuat logo dari tabel library_settings
-  useEffect(() => {
-    const loadLogo = async () => {
-      const { data, error } = await supabase
-        .from("library_settings")
-        .select("logo_url")
-        .eq("id", 1)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Gagal memuat logo:", error);
-        return;
-      }
-
-      if (data?.logo_url) {
-        setLogoUrl(data.logo_url);
-      }
-    };
-
-    loadLogo();
-  }, []);
-
-  const availableMenus = menu.filter((item) => item.name);
-
-  const searchResults = globalSearch.trim()
-    ? availableMenus.filter((item) =>
-        item.name.toLowerCase().includes(globalSearch.trim().toLowerCase())
-      )
-    : [];
-
+  // Mengatur perpindahan menu
   function selectMenu(menuName) {
+    const allowed = availableMenus.some(
+      (item) => item.name === menuName
+    );
+
+    if (!allowed) {
+      setActivePage("Dashboard");
+      setGlobalSearch("");
+      setShowSearchResults(false);
+      return;
+    }
+
     setActivePage(menuName);
     setGlobalSearch("");
     setShowSearchResults(false);
   }
+
+  // Pencarian menu
+  const searchResults = globalSearch.trim()
+    ? availableMenus.filter((item) =>
+        item.name
+          .toLowerCase()
+          .includes(globalSearch.trim().toLowerCase())
+      )
+    : [];
 
   function handleSearchKeyDown(event) {
     if (event.key === "Enter") {
@@ -178,6 +286,51 @@ function App() {
     }
   }
 
+  // BANTUAN TIM PENGEMBANG MELALUI GMAIL
+  const handleHelp = () => {
+    const email = "arnaalmaidahsaputri@gmail.com";
+
+    const roleLabel = isDeveloper
+      ? "Tim Pengembang"
+      : isLibrarian
+        ? "Pustakawan"
+        : "Kepala Sekolah";
+
+    const subject = "Bantuan/Kendala Penggunaan PUSTAKARA";
+
+    const body = `Halo Tim Pengembang PUSTAKARA,
+
+Saya ingin menyampaikan kendala terkait penggunaan aplikasi PUSTAKARA.
+
+Informasi Pengguna:
+Nama: ${userProfile?.username || "-"}
+Role: ${roleLabel}
+Halaman yang dibuka: ${activePage}
+Waktu: ${new Date().toLocaleString("id-ID")}
+
+Kendala yang dialami:
+[Tuliskan kendala yang dialami di sini]
+
+Terima kasih.`;
+
+    const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      email
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    window.open(gmailLink, "_blank", "noopener,noreferrer");
+  };
+
+  // Logout
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error("Gagal keluar:", error);
+      alert("Gagal keluar dari akun. Silakan coba lagi.");
+    }
+  };
+
+  // Data dashboard
   const books = dashboardData.books;
   const members = dashboardData.members;
   const loans = dashboardData.loans;
@@ -318,29 +471,74 @@ function App() {
     year: "numeric",
   });
 
+  // Tampilan saat memeriksa sesi
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#245B70",
+          fontFamily: "Manrope, sans-serif",
+        }}
+      >
+        Memeriksa sesi akun...
+      </div>
+    );
+  }
+
+  // Jika belum login, tampilkan Login
+  if (!userProfile) {
+    return (
+      <Login
+        onLogin={setUserProfile}
+        logoUrl={logoUrl}
+      />
+    );
+  }
+
+  // Jika role tidak dikenali
+  if (!isValidRole) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#245B70",
+        }}
+      >
+        Role akun tidak dikenali. Mengeluarkan akun...
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
+
+        {/* BRAND PUSTAKARA */}
         <div className="brand">
           <div className="brand-icon">
             {logoUrl ? (
               <img
                 src={logoUrl}
-                alt="Logo Pustakara"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  borderRadius: "8px",
-                }}
+                alt="Logo PUSTAKARA"
+                className="brand-logo-image"
               />
             ) : (
-              <BookOpen size={25} />
+              <BookOpen
+                size={27}
+                strokeWidth={2}
+              />
             )}
           </div>
 
-          <div>
-            <h2>Pustakara</h2>
+          <div className="brand-text">
+            <h2>PUSTAKARA</h2>
             <span>LIBRARY MANAGEMENT</span>
           </div>
         </div>
@@ -350,7 +548,7 @@ function App() {
         </div>
 
         <nav className="navigation">
-          {menu.map((item, index) =>
+          {visibleMenus.map((item, index) =>
             item.title ? (
               <p className="menu-title" key={index}>
                 {item.title}
@@ -375,9 +573,14 @@ function App() {
             <div className="help-icon">?</div>
             <strong>Butuh bantuan?</strong>
             <p>
-              Hubungi administrator jika mengalami kendala.
+              Hubungi Tim Pengembang jika mengalami kendala.
             </p>
-            <button>Bantuan</button>
+            <button
+              type="button"
+              onClick={handleHelp}
+            >
+              Bantuan
+            </button>
           </div>
 
           <div className="version">
@@ -387,18 +590,18 @@ function App() {
       </aside>
 
       <main className="main">
+
+        {/* HEADER */}
         <header className="topbar">
-          <div>
-            <div className="breadcrumb">
-              Halaman / <strong>{activePage}</strong>
-            </div>
+          <div className="topbar-heading">
+            <span className="breadcrumb">Halaman /</span>
             <h2>{activePage}</h2>
           </div>
 
           <div className="top-actions">
             <div className="global-search-container">
               <div className="search-box">
-                <Search size={18} />
+                <Search size={17} />
 
                 <input
                   type="text"
@@ -422,7 +625,7 @@ function App() {
                     }}
                     aria-label="Hapus pencarian"
                   >
-                    <X size={16} />
+                    <X size={15} />
                   </button>
                 ) : (
                   <span>Enter</span>
@@ -466,35 +669,64 @@ function App() {
               )}
             </div>
 
-            <button className="notification">
-              <Bell size={20} />
-              <i />
-            </button>
+            <NotificationBell />
 
             <div className="profile">
-              <div className="avatar">AD</div>
-              <div className="profile-info">
-                <strong>Administrator</strong>
-                <span>Admin Perpustakaan</span>
+              <div className="avatar">
+                {userProfile.username
+                  .split(" ")
+                  .map((word) => word[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
               </div>
-              <ChevronDown size={16} />
+
+              <div className="profile-info">
+                <strong>{userProfile.username}</strong>
+                <span>
+                  {isDeveloper
+                    ? "Tim Pengembang"
+                    : isLibrarian
+                      ? "Pustakawan"
+                      : "Kepala Sekolah"}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Keluar dari akun"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: 0,
+                }}
+              >
+                <ChevronDown size={15} />
+              </button>
             </div>
           </div>
         </header>
 
         {activePage === "Data Buku" ? (
-          <DataBuku />
+          <DataBuku userRole={userProfile.role} />
         ) : activePage === "Data Anggota" ? (
-          <DataAnggota />
+          <DataAnggota userRole={userProfile.role} />
+        ) : activePage === "Kunjungan Perpustakaan" ? (
+          <KunjunganPerpustakaan userRole={userProfile.role} />
         ) : activePage === "Peminjaman" ? (
-          <Peminjaman />
+          <Peminjaman userRole={userProfile.role} />
         ) : activePage === "Pengembalian" ? (
-          <Pengembalian />
+          <Pengembalian userRole={userProfile.role} />
         ) : activePage === "Reservasi Buku" ? (
-          <Reservasi />
+          <Reservasi userRole={userProfile.role} />
         ) : activePage === "Laporan" ? (
-          <Laporan />
-        ) : activePage === "Pengaturan" ? (
+          <Laporan userRole={userProfile.role} />
+        ) : activePage === "Pengaturan" && isDeveloper ? (
           <Pengaturan />
         ) : activePage === "Dashboard" ? (
           <section className="content">
@@ -504,20 +736,22 @@ function App() {
                   {currentDate.toUpperCase()}
                 </p>
                 <h1>
-                  Selamat datang, Administrator! 👋
+                  Selamat datang, {userProfile.username}! 👋
                 </h1>
                 <p>
                   Berikut ringkasan aktivitas perpustakaan hari ini.
                 </p>
               </div>
 
-              <button
-                className="primary-button"
-                onClick={() => selectMenu("Data Buku")}
-              >
-                <Plus size={18} />
-                Tambah Buku
-              </button>
+              {canManage && (
+                <button
+                  className="primary-button"
+                  onClick={() => selectMenu("Data Buku")}
+                >
+                  <Plus size={18} />
+                  Tambah Buku
+                </button>
+              )}
             </div>
 
             {dashboardError && (
@@ -525,6 +759,7 @@ function App() {
                 <p style={{ color: "#dc2626" }}>
                   Gagal memuat data: {dashboardError}
                 </p>
+
                 <button
                   className="primary-button"
                   onClick={loadDashboard}
@@ -657,6 +892,7 @@ function App() {
                         <h3>Ringkasan Koleksi</h3>
                         <p>Kondisi ketersediaan koleksi buku</p>
                       </div>
+
                       <button
                         className="more-button"
                         onClick={loadDashboard}
@@ -693,6 +929,7 @@ function App() {
                           {formatNumber(availableCopies)}
                         </strong>
                       </div>
+
                       <div>
                         <span>
                           <i className="dot green-dot" />
@@ -702,6 +939,7 @@ function App() {
                           {formatNumber(unavailableCopies)}
                         </strong>
                       </div>
+
                       <div>
                         <span>
                           <i className="dot orange-dot" />
@@ -719,7 +957,9 @@ function App() {
                   <div className="panel-heading">
                     <div>
                       <h3>Aktivitas Terbaru</h3>
-                      <p>Transaksi peminjaman dan pengembalian terkini</p>
+                      <p>
+                        Transaksi peminjaman dan pengembalian terkini
+                      </p>
                     </div>
 
                     <button
@@ -749,8 +989,10 @@ function App() {
                                 <strong>{loan.memberName}</strong>
                                 <small>{loan.className}</small>
                               </td>
+
                               <td>{loan.bookTitle}</td>
                               <td>{formatDate(loan.loan_date)}</td>
+
                               <td>
                                 <span
                                   className={`status ${loan.statusClass}`}
@@ -762,7 +1004,10 @@ function App() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: "center" }}>
+                            <td
+                              colSpan="4"
+                              style={{ textAlign: "center" }}
+                            >
                               Belum ada aktivitas transaksi.
                             </td>
                           </tr>
@@ -783,7 +1028,7 @@ function App() {
             <div className="panel" style={{ padding: 24 }}>
               <h3>{activePage}</h3>
               <p>
-                Halaman ini akan kita kembangkan pada tahap berikutnya.
+                Halaman ini tidak tersedia untuk akun ini.
               </p>
             </div>
           </section>

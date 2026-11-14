@@ -8,17 +8,16 @@ import {
   CheckCircle,
   Users,
   User,
-  CalendarDays,
   X,
   Save,
   Trash2,
   AlertCircle,
   AlertTriangle,
   ChevronDown,
-  Check,
 } from "lucide-react";
 
 import { supabase } from "../lib/supabase";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
 const getToday = () => {
   const date = new Date();
@@ -55,11 +54,15 @@ const statusClass = {
   tersedia: "active",
   disetujui: "active",
   ditolak: "late",
-  selesai: "active",
+  selesai: "returned",
   dibatalkan: "",
 };
 
-export default function Reservasi() {
+export default function Reservasi({ userRole }) {
+  const canManage =
+    userRole === "tim_pengembang" ||
+    userRole === "pustakawan";
+
   const [reservations, setReservations] = useState([]);
   const [members, setMembers] = useState([]);
   const [books, setBooks] = useState([]);
@@ -77,6 +80,10 @@ export default function Reservasi() {
   const [showMemberList, setShowMemberList] = useState(false);
   const [showBookList, setShowBookList] = useState(false);
 
+  // STATE MODAL HAPUS
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [form, setForm] = useState({
     memberId: "",
     bookId: "",
@@ -91,7 +98,7 @@ export default function Reservasi() {
     }, 3500);
   };
 
-  // Mengambil data dari Supabase
+  // MENGAMBIL DATA DARI SUPABASE
   const loadData = async () => {
     setLoading(true);
 
@@ -159,9 +166,7 @@ export default function Reservasi() {
           kodeBuku:
             bookMap[item.book_id]?.book_code || "-",
           stok:
-            Number(
-              bookMap[item.book_id]?.available_copies
-            ) || 0,
+            Number(bookMap[item.book_id]?.available_copies) || 0,
           tanggal: item.reservation_date,
           status: item.status,
           dibuat: item.created_at,
@@ -185,7 +190,7 @@ export default function Reservasi() {
     loadData();
   }, []);
 
-  // Pencarian anggota
+  // PENCARIAN ANGGOTA
   const filteredMembers = useMemo(() => {
     const keyword = memberSearch.toLowerCase().trim();
 
@@ -200,7 +205,7 @@ export default function Reservasi() {
     );
   }, [members, memberSearch]);
 
-  // Pencarian buku yang stoknya habis
+  // BUKU YANG STOKNYA HABIS
   const unavailableBooks = useMemo(() => {
     const keyword = bookSearch.toLowerCase().trim();
 
@@ -226,13 +231,14 @@ export default function Reservasi() {
     (book) => book.id === form.bookId
   );
 
-  // Antrean aktif
+  // ANTREAN AKTIF
   const activeReservations = useMemo(() => {
     return reservations.filter((item) =>
       ["menunggu", "tersedia", "disetujui"].includes(item.status)
     );
   }, [reservations]);
 
+  // NOMOR ANTREAN PER BUKU
   const getQueueNumber = (item) => {
     if (
       ["selesai", "ditolak", "dibatalkan"].includes(item.status)
@@ -251,7 +257,7 @@ export default function Reservasi() {
 
         if (difference !== 0) return difference;
 
-        return a.id.localeCompare(b.id);
+        return String(a.id).localeCompare(String(b.id));
       });
 
     return (
@@ -261,6 +267,7 @@ export default function Reservasi() {
     );
   };
 
+  // STATISTIK
   const waitingCount = reservations.filter(
     (item) => item.status === "menunggu"
   ).length;
@@ -271,6 +278,7 @@ export default function Reservasi() {
 
   const activeQueueCount = activeReservations.length;
 
+  // PENCARIAN RESERVASI
   const filteredReservations = reservations.filter((item) =>
     [
       item.kode,
@@ -279,12 +287,14 @@ export default function Reservasi() {
       item.buku,
       item.kodeBuku,
     ].some((value) =>
-      String(value).toLowerCase().includes(search.toLowerCase())
+      String(value || "").toLowerCase().includes(search.toLowerCase())
     )
   );
 
-  // Membuka modal
+  // BUKA MODAL
   const openModal = () => {
+    if (!canManage) return;
+
     setForm({
       memberId: "",
       bookId: "",
@@ -306,8 +316,10 @@ export default function Reservasi() {
     setShowBookList(false);
   };
 
-  // Memilih anggota
+  // PILIH ANGGOTA
   const selectMember = (member) => {
+    if (!canManage) return;
+
     setForm((previous) => ({
       ...previous,
       memberId: member.id,
@@ -317,8 +329,10 @@ export default function Reservasi() {
     setShowMemberList(false);
   };
 
-  // Memilih buku
+  // PILIH BUKU
   const selectBook = (book) => {
+    if (!canManage) return;
+
     setForm((previous) => ({
       ...previous,
       bookId: book.id,
@@ -328,9 +342,11 @@ export default function Reservasi() {
     setShowBookList(false);
   };
 
-  // Menambahkan reservasi
+  // SIMPAN RESERVASI
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (!canManage) return;
 
     if (!form.memberId || !form.bookId) {
       showNotification(
@@ -411,7 +427,7 @@ export default function Reservasi() {
     }
   };
 
-  // Membuat kode peminjaman otomatis
+  // MEMBUAT KODE PEMINJAMAN
   const generateLoanCode = async () => {
     const { data, error } = await supabase
       .from("loans")
@@ -435,16 +451,13 @@ export default function Reservasi() {
     return `PJM${String(highestNumber + 1).padStart(3, "0")}`;
   };
 
-  // Mengubah status reservasi
+  // UBAH STATUS RESERVASI
   const updateStatus = async (item, newStatus) => {
+    if (!canManage) return;
     if (item.status === newStatus) return;
-
     if (processingId) return;
 
-    if (
-      newStatus === "tersedia" &&
-      item.stok <= 0
-    ) {
+    if (newStatus === "tersedia" && item.stok <= 0) {
       showNotification(
         "warning",
         "Stok buku belum tersedia. Reservasi belum dapat diubah menjadi Tersedia."
@@ -477,7 +490,6 @@ export default function Reservasi() {
     setProcessingId(item.id);
 
     try {
-      // Persetujuan membuat transaksi peminjaman
       if (newStatus === "disetujui") {
         const loanDate = getToday();
 
@@ -491,12 +503,8 @@ export default function Reservasi() {
 
         const dueDate = [
           dueDateObject.getFullYear(),
-          String(
-            dueDateObject.getMonth() + 1
-          ).padStart(2, "0"),
-          String(
-            dueDateObject.getDate()
-          ).padStart(2, "0"),
+          String(dueDateObject.getMonth() + 1).padStart(2, "0"),
+          String(dueDateObject.getDate()).padStart(2, "0"),
         ].join("-");
 
         const loanCode = await generateLoanCode();
@@ -523,7 +531,6 @@ export default function Reservasi() {
         return;
       }
 
-      // Perubahan status selain persetujuan
       const { error } = await supabase
         .from("reservations")
         .update({ status: newStatus })
@@ -549,31 +556,38 @@ export default function Reservasi() {
     }
   };
 
-  // Menghapus reservasi
-  const deleteReservation = async (item) => {
-    if (processingId) return;
+  // BUKA KONFIRMASI HAPUS
+  const deleteReservation = (item) => {
+    if (!canManage) return;
+    if (processingId || deleting) return;
 
-    const confirmed = window.confirm(
-      `Hapus reservasi ${item.kode} atas nama ${item.nama}?`
-    );
+    setDeleteTarget(item);
+  };
 
-    if (!confirmed) return;
+  // PROSES HAPUS RESERVASI
+  const handleDeleteReservation = async () => {
+    if (!canManage || !deleteTarget || deleting) return;
 
-    setProcessingId(item.id);
+    setDeleting(true);
+    setProcessingId(deleteTarget.id);
 
     try {
       const { error } = await supabase
         .from("reservations")
         .delete()
-        .eq("id", item.id);
+        .eq("id", deleteTarget.id);
 
       if (error) throw error;
+
+      const deletedCode = deleteTarget.kode;
+
+      setDeleteTarget(null);
 
       await loadData();
 
       showNotification(
         "success",
-        "Reservasi berhasil dihapus."
+        `Reservasi ${deletedCode} berhasil dihapus.`
       );
     } catch (error) {
       console.error("Gagal menghapus reservasi:", error);
@@ -584,82 +598,97 @@ export default function Reservasi() {
       );
     } finally {
       setProcessingId(null);
+      setDeleting(false);
     }
   };
 
   return (
-    <div className="book-page">
-      <div className="book-page-header">
+    <div className="page-content">
+      {/* HEADER HALAMAN */}
+      <div className="page-heading">
         <div>
-          <h1>Reservasi Buku</h1>
+          <span className="page-eyebrow">
+            TRANSAKSI PERPUSTAKAAN
+          </span>
+
+          <h2>Reservasi Buku</h2>
+
           <p>
             Kelola antrean pemesanan buku ketika stok perpustakaan sedang habis.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="save-button"
-          onClick={openModal}
-        >
-          <Plus size={18} />
-          Tambah Reservasi
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            className="primary-button"
+            onClick={openModal}
+          >
+            <Plus size={18} />
+            Tambah Reservasi
+          </button>
+        )}
       </div>
 
-      {/* Ringkasan */}
-      <div className="member-summary-grid">
+      {/* RINGKASAN */}
+      <div className="book-summary">
         <div className="member-summary-card">
-          <div className="member-summary-icon orange">
-            <Clock size={21} />
+          <div className="member-summary-icon late">
+            <Clock size={22} />
           </div>
-          <div>
+
+          <div className="member-summary-content">
             <span>Menunggu</span>
-            <h2>{waitingCount}</h2>
+            <h3>{waitingCount}</h3>
           </div>
         </div>
 
         <div className="member-summary-card">
-          <div className="member-summary-icon green">
-            <CheckCircle size={21} />
+          <div className="member-summary-icon active">
+            <CheckCircle size={22} />
           </div>
-          <div>
+
+          <div className="member-summary-content">
             <span>Buku Tersedia</span>
-            <h2>{availableCount}</h2>
+            <h3>{availableCount}</h3>
           </div>
         </div>
 
         <div className="member-summary-card">
-          <div className="member-summary-icon blue">
-            <Users size={21} />
+          <div className="member-summary-icon">
+            <Users size={22} />
           </div>
-          <div>
+
+          <div className="member-summary-content">
             <span>Daftar Antrean Aktif</span>
-            <h2>{activeQueueCount}</h2>
+            <h3>{activeQueueCount}</h3>
           </div>
         </div>
       </div>
 
-      {/* Tabel reservasi */}
-      <div className="book-table-card">
-        <div className="book-table-heading">
+      {/* DAFTAR RESERVASI */}
+      <section className="panel book-panel">
+        <div className="book-toolbar">
           <div>
             <h3>Daftar Antrean Reservasi</h3>
+
             <p>
               Reservasi disusun berdasarkan waktu pengajuan untuk setiap buku.
             </p>
+
+            <span className="member-total-badge">
+              {filteredReservations.length} Reservasi
+            </span>
           </div>
 
-          <div className="book-search">
-            <Search size={18} />
+          <div className="search-box book-search">
+            <Search size={17} />
 
             <input
               type="text"
               placeholder="Cari kode, nama, atau judul buku..."
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
             />
 
             {search && (
@@ -674,8 +703,8 @@ export default function Reservasi() {
           </div>
         </div>
 
-        <div className="book-table-wrapper">
-          <table className="book-table">
+        <div className="table-scroll">
+          <table className="data-table member-table">
             <thead>
               <tr>
                 <th>No.</th>
@@ -685,14 +714,17 @@ export default function Reservasi() {
                 <th>Judul Buku</th>
                 <th>Tanggal Reservasi</th>
                 <th>Status</th>
-                <th>Aksi</th>
+                {canManage && <th>Aksi</th>}
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="book-empty">
+                  <td
+                    colSpan={canManage ? 8 : 7}
+                    className="member-empty"
+                  >
                     Memuat data reservasi...
                   </td>
                 </tr>
@@ -702,31 +734,26 @@ export default function Reservasi() {
                     <td>{index + 1}</td>
 
                     <td>
-                      <strong>
-                        {getQueueNumber(item)}
-                      </strong>
+                      <strong>{getQueueNumber(item)}</strong>
                     </td>
 
                     <td>
-                      <strong>{item.kode}</strong>
+                      <span className="member-number">
+                        {item.kode}
+                      </span>
                     </td>
 
                     <td>
                       <div className="loan-person-cell">
-                        <div className="loan-avatar">
-                          <User size={16} />
-                        </div>
-                        <div>
-                          <strong>{item.nama}</strong>
-                          <small>NIS: {item.nis}</small>
-                        </div>
+                        <strong>{item.nama}</strong>
+                        <span>NIS: {item.nis}</span>
                       </div>
                     </td>
 
                     <td>
                       <div className="loan-book-cell">
                         <strong>{item.buku}</strong>
-                        <small>{item.kodeBuku}</small>
+                        <span>{item.kodeBuku}</span>
                       </div>
                     </td>
 
@@ -742,81 +769,79 @@ export default function Reservasi() {
                       </span>
                     </td>
 
-                    <td>
-                      <div className="reservation-actions">
-                        <select
-                          className="reservation-status-select"
-                          value={item.status}
-                          disabled={processingId === item.id}
-                          onChange={(event) =>
-                            updateStatus(
-                              item,
-                              event.target.value
-                            )
-                          }
-                        >
-                          <option value="menunggu">
-                            Menunggu
-                          </option>
-                          <option value="tersedia">
-                            Tersedia
-                          </option>
-                          <option value="disetujui">
-                            Disetujui
-                          </option>
-                          <option value="ditolak">
-                            Ditolak
-                          </option>
-                          <option value="selesai">
-                            Selesai
-                          </option>
-                          <option value="dibatalkan">
-                            Dibatalkan
-                          </option>
-                        </select>
+                    {canManage && (
+                      <td>
+                        <div className="reservation-actions">
+                          <select
+                            className="reservation-status-select"
+                            value={item.status}
+                            disabled={processingId === item.id}
+                            onChange={(event) =>
+                              updateStatus(item, event.target.value)
+                            }
+                          >
+                            {Object.entries(statusLabel).map(
+                              ([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              )
+                            )}
+                          </select>
 
-                        <button
-                          type="button"
-                          className="delete-action"
-                          title="Hapus reservasi"
-                          disabled={processingId === item.id}
-                          onClick={() =>
-                            deleteReservation(item)
-                          }
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                          <button
+                            type="button"
+                            className="delete-action"
+                            title="Hapus reservasi"
+                            disabled={
+                              processingId === item.id || deleting
+                            }
+                            onClick={() => deleteReservation(item)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="book-empty">
-                    Belum ada data reservasi.
+                  <td
+                    colSpan={canManage ? 8 : 7}
+                    className="member-empty"
+                  >
+                    <BookOpen size={28} />
+                    <strong>Belum ada data reservasi.</strong>
+                    <span>
+                      Belum ditemukan reservasi yang sesuai pencarian.
+                    </span>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+      </section>
 
-        <div className="book-table-footer">
-          Menampilkan {filteredReservations.length} dari{" "}
-          {reservations.length} reservasi
-        </div>
-      </div>
-
-      {/* Modal tambah reservasi */}
-      {showModal && (
-        <div className="book-modal-overlay">
-          <div className="book-modal">
+      {/* MODAL TAMBAH RESERVASI */}
+      {showModal && canManage && (
+        <div
+          className="book-modal-overlay"
+          onClick={closeModal}
+        >
+          <div
+            className="book-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="book-modal-heading">
               <div>
                 <span className="modal-eyebrow">
-                  RESERVASI BUKU
+                  TRANSAKSI PERPUSTAKAAN
                 </span>
+
                 <h2>Tambah Reservasi</h2>
+
                 <p>
                   Pilih anggota dan buku yang stoknya sedang habis.
                 </p>
@@ -833,215 +858,194 @@ export default function Reservasi() {
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Pencarian anggota */}
-              <div className="return-date-field">
-                <label>Nama Anggota</label>
+              <div className="member-form-grid">
+                {/* PILIH ANGGOTA */}
+                <label className="member-full-width search-select-label">
+                  <span>
+                    <User size={15} />
+                    Nama Anggota <b>*</b>
+                  </span>
 
-                <div className="reservation-search-box">
-                  <Search size={18} />
+                  <div className="search-select-wrapper">
+                    <Search size={17} />
 
-                  <input
-                    type="text"
-                    placeholder="Cari nama, NIS, atau nomor anggota..."
-                    value={
-                      selectedMember
-                        ? selectedMember.full_name
-                        : memberSearch
-                    }
-                    onChange={(event) => {
-                      setMemberSearch(event.target.value);
-
-                      setForm((previous) => ({
-                        ...previous,
-                        memberId: "",
-                      }));
-
-                      setShowMemberList(true);
-                    }}
-                    onFocus={() => {
-                      if (!selectedMember) {
-                        setShowMemberList(true);
+                    <input
+                      type="text"
+                      placeholder="Cari nama, NIS, atau nomor anggota..."
+                      value={
+                        selectedMember
+                          ? selectedMember.full_name
+                          : memberSearch
                       }
-                    }}
-                  />
-
-                  {selectedMember ? (
-                    <button
-                      type="button"
-                      onClick={() => {
+                      autoComplete="off"
+                      onChange={(event) => {
+                        setMemberSearch(event.target.value);
                         setForm((previous) => ({
                           ...previous,
                           memberId: "",
                         }));
-
-                        setMemberSearch("");
                         setShowMemberList(true);
                       }}
-                    >
-                      <X size={17} />
-                    </button>
-                  ) : (
-                    <ChevronDown size={17} />
-                  )}
-                </div>
+                      onFocus={() => {
+                        if (!selectedMember) {
+                          setShowMemberList(true);
+                          setShowBookList(false);
+                        }
+                      }}
+                    />
 
-                {showMemberList && !selectedMember && (
-                  <div className="reservation-option-list">
-                    {filteredMembers.length > 0 ? (
-                      filteredMembers.map((member) => (
-                        <button
-                          type="button"
-                          key={member.id}
-                          className="reservation-option"
-                          onClick={() =>
-                            selectMember(member)
-                          }
-                        >
-                          <div className="reservation-option-icon">
-                            <User size={18} />
-                          </div>
-
-                          <div className="reservation-option-info">
-                            <strong>{member.full_name}</strong>
-                            <small>
-                              {member.member_number || "-"}
-                              {member.nis
-                                ? ` · NIS ${member.nis}`
-                                : ""}
-                            </small>
-                          </div>
-
-                          <Check size={17} />
-                        </button>
-                      ))
+                    {selectedMember ? (
+                      <button
+                        type="button"
+                        className="search-clear"
+                        onClick={() => {
+                          setForm((previous) => ({
+                            ...previous,
+                            memberId: "",
+                          }));
+                          setMemberSearch("");
+                          setShowMemberList(true);
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
                     ) : (
-                      <div className="reservation-no-result">
-                        Anggota tidak ditemukan.
+                      <ChevronDown size={17} />
+                    )}
+
+                    {showMemberList && !selectedMember && (
+                      <div className="search-select-dropdown">
+                        {filteredMembers.length > 0 ? (
+                          filteredMembers.map((member) => (
+                            <button
+                              type="button"
+                              key={member.id}
+                              className="search-select-option"
+                              onClick={() => selectMember(member)}
+                            >
+                              <strong>{member.full_name}</strong>
+                              <span>
+                                {member.member_number || "-"}
+                                {member.nis
+                                  ? ` · NIS ${member.nis}`
+                                  : ""}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="search-select-empty">
+                            Anggota tidak ditemukan.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
 
-                {selectedMember && (
-                  <small className="reservation-selected-note">
-                    <CheckCircle size={14} />
-                    Anggota berhasil dipilih
-                  </small>
-                )}
-              </div>
+                  {selectedMember && (
+                    <small className="reservation-selected-note">
+                      <CheckCircle size={14} />
+                      Anggota berhasil dipilih
+                    </small>
+                  )}
+                </label>
 
-              {/* Pencarian buku */}
-              <div className="return-date-field">
-                <label>Judul Buku</label>
+                {/* PILIH BUKU */}
+                <label className="member-full-width search-select-label">
+                  <span>
+                    <BookOpen size={15} />
+                    Judul Buku <b>*</b>
+                  </span>
 
-                <div className="reservation-search-box">
-                  <Search size={18} />
+                  <div className="search-select-wrapper">
+                    <Search size={17} />
 
-                  <input
-                    type="text"
-                    placeholder="Cari judul atau kode buku..."
-                    value={
-                      selectedBook
-                        ? selectedBook.title
-                        : bookSearch
-                    }
-                    onChange={(event) => {
-                      setBookSearch(event.target.value);
-
-                      setForm((previous) => ({
-                        ...previous,
-                        bookId: "",
-                      }));
-
-                      setShowBookList(true);
-                    }}
-                    onFocus={() => {
-                      if (!selectedBook) {
-                        setShowBookList(true);
+                    <input
+                      type="text"
+                      placeholder="Cari judul atau kode buku..."
+                      value={
+                        selectedBook
+                          ? selectedBook.title
+                          : bookSearch
                       }
-                    }}
-                  />
-
-                  {selectedBook ? (
-                    <button
-                      type="button"
-                      onClick={() => {
+                      autoComplete="off"
+                      onChange={(event) => {
+                        setBookSearch(event.target.value);
                         setForm((previous) => ({
                           ...previous,
                           bookId: "",
                         }));
-
-                        setBookSearch("");
                         setShowBookList(true);
                       }}
-                    >
-                      <X size={17} />
-                    </button>
-                  ) : (
-                    <ChevronDown size={17} />
-                  )}
-                </div>
+                      onFocus={() => {
+                        if (!selectedBook) {
+                          setShowBookList(true);
+                          setShowMemberList(false);
+                        }
+                      }}
+                    />
 
-                {showBookList && !selectedBook && (
-                  <div className="reservation-option-list">
-                    {unavailableBooks.length > 0 ? (
-                      unavailableBooks.map((book) => (
-                        <button
-                          type="button"
-                          key={book.id}
-                          className="reservation-option"
-                          onClick={() =>
-                            selectBook(book)
-                          }
-                        >
-                          <div className="reservation-option-icon">
-                            <BookOpen size={18} />
-                          </div>
-
-                          <div className="reservation-option-info">
-                            <strong>{book.title}</strong>
-                            <small>
-                              {book.book_code} · Stok tersedia:{" "}
-                              {Number(book.available_copies) || 0}
-                            </small>
-                          </div>
-
-                          <span className="reservation-out-stock">
-                            Habis
-                          </span>
-                        </button>
-                      ))
+                    {selectedBook ? (
+                      <button
+                        type="button"
+                        className="search-clear"
+                        onClick={() => {
+                          setForm((previous) => ({
+                            ...previous,
+                            bookId: "",
+                          }));
+                          setBookSearch("");
+                          setShowBookList(true);
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
                     ) : (
-                      <div className="reservation-no-result">
-                        Tidak ada buku habis yang sesuai pencarian.
+                      <ChevronDown size={17} />
+                    )}
+
+                    {showBookList && !selectedBook && (
+                      <div className="search-select-dropdown">
+                        {unavailableBooks.length > 0 ? (
+                          unavailableBooks.map((book) => (
+                            <button
+                              type="button"
+                              key={book.id}
+                              className="search-select-option"
+                              onClick={() => selectBook(book)}
+                            >
+                              <strong>{book.title}</strong>
+                              <span>
+                                {book.book_code} · Stok tersedia:{" "}
+                                {Number(book.available_copies) || 0}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="search-select-empty">
+                            Tidak ada buku habis yang sesuai pencarian.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
 
-                {selectedBook && (
-                  <small className="reservation-selected-note">
-                    <CheckCircle size={14} />
-                    Buku berhasil dipilih · Stok habis
+                  {selectedBook && (
+                    <small className="reservation-selected-note">
+                      <CheckCircle size={14} />
+                      Buku berhasil dipilih · Stok habis
+                    </small>
+                  )}
+
+                  <small className="return-date-note">
+                    Hanya buku dengan stok tersedia 0 yang dapat direservasi.
                   </small>
-                )}
-
-                <small className="return-date-note">
-                  Hanya buku dengan stok tersedia 0 yang dapat direservasi.
-                </small>
-              </div>
-
-              {/* Tanggal reservasi */}
-              <div className="return-date-field">
-                <label htmlFor="reservationDate">
-                  Tanggal Reservasi
                 </label>
 
-                <div className="return-date-input">
-                  <CalendarDays size={18} />
+                {/* TANGGAL RESERVASI */}
+                <label>
+                  Tanggal Reservasi <span>*</span>
 
                   <input
-                    id="reservationDate"
                     type="date"
                     value={form.reservationDate}
                     max={getToday()}
@@ -1053,7 +1057,7 @@ export default function Reservasi() {
                     }
                     required
                   />
-                </div>
+                </label>
               </div>
 
               <div className="return-late-info">
@@ -1063,10 +1067,10 @@ export default function Reservasi() {
                 </span>
               </div>
 
-              <div className="book-modal-actions">
+              <div className="book-modal-footer">
                 <button
                   type="button"
-                  className="cancel-button"
+                  className="secondary-button"
                   onClick={closeModal}
                   disabled={saving}
                 >
@@ -1079,9 +1083,7 @@ export default function Reservasi() {
                   disabled={saving}
                 >
                   <Save size={17} />
-                  {saving
-                    ? "Menyimpan..."
-                    : "Simpan Reservasi"}
+                  {saving ? "Menyimpan..." : "Simpan Reservasi"}
                 </button>
               </div>
             </form>
@@ -1089,13 +1091,24 @@ export default function Reservasi() {
         </div>
       )}
 
-      {/* Notifikasi */}
+      {/* MODAL KONFIRMASI HAPUS */}
+      {canManage && deleteTarget && (
+        <ConfirmDeleteModal
+          title="Hapus Reservasi?"
+          highlightedText={`reservasi ${deleteTarget.kode}`}
+          cancelText="Tidak"
+          confirmText="Ya, Hapus"
+          loading={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteReservation}
+        />
+      )}
+
+      {/* NOTIFIKASI */}
       {notification && (
         <div
           className={`book-notification ${
-            notification.type === "success"
-              ? "success"
-              : "warning"
+            notification.type === "success" ? "success" : "warning"
           }`}
         >
           <div className="notification-icon">

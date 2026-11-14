@@ -432,7 +432,6 @@ button.primary:hover,
   font-weight: 700;
 }
 
-
 /* =========================
    8. DASHBOARD
    ========================= */
@@ -1523,7 +1522,10 @@ tbody td:first-child {
     flex: 1;
   }
 }
-/* PERBAIKAN LAYOUT UTAMA PUSTAKARA */
+
+/* =========================================================
+   PERBAIKAN LAYOUT UTAMA PUSTAKARA
+   ========================================================= */
 
 .app {
   display: flex;
@@ -1549,10 +1551,8 @@ tbody td:first-child {
 
 /* =========================================================
    FIX DASHBOARD PUSTAKARA
-   Statistik, Grafik Aktivitas, dan Ringkasan Koleksi
    ========================================================= */
 
-/* Layout dashboard */
 .app {
   display: flex;
   width: 100%;
@@ -1958,7 +1958,7 @@ footer {
   text-align: center;
 }
 
-/* Responsive */
+/* Responsive dashboard */
 @media (max-width: 1100px) {
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2013,7 +2013,12 @@ footer {
   .chart {
     min-width: 390px;
   }
-}/* FIX MODAL PUSTAKARA */
+}
+
+/* =========================================================
+   FIX MODAL PUSTAKARA
+   ========================================================= */
+
 .book-modal-overlay {
   position: fixed;
   inset: 0;
@@ -2074,4 +2079,900 @@ footer {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
+}
+
+/* =========================================================
+   NOTIFICATION PANEL — PUSTAKARA
+   ========================================================= */
+
+.pustakara-notification-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pustakara-notification-wrapper > .notification {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E4E9E7;
+  border-radius: 11px;
+  background: #FFFFFF;
+  color: #245B70;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.pustakara-notification-wrapper > .notification:hover {
+  background: #E8F0F1;
+  border-color: #C9DAD8;
+}
+
+.notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  border-radius: 20px;
+  background: #C45B55;
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 13px);
+  right: 0;
+  z-index: 5000;
+  width: 390px;
+  max-width: calc(100vw - 28px);
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 15px;
+  box-shadow: 0 18px 45px rgba(36, 91, 112, 0.17);
+  overflow: hidden;
+  animation: notificationAppear 0.18s ease;
+}
+
+@keyframes notificationAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #EEF1EF;
+}
+
+.notification-panel-header h3 {
+  color: #245B70;
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 3px;
+}
+
+.notification-panel-header p {
+  color: #718096;
+  font-size: 10px;
+  margin: 0;
+}
+
+.notification-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #718096;
+  cursor: pointer;
+}
+
+.notification-close:hover {
+  background: #F1F5F3;
+  color: #245B70;
+}
+
+.notification-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 15px;
+  border-bottom: 1px solid #EEF1EF;
+}
+
+.notification-panel-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 7px;
+  background: #F7F8F6;
+  color: #245B70;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-panel-actions button:hover {
+  background: #E8F0F1;
+}
+
+.notification-panel-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.notification-list {
+  max-height: 390px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #EEF1EF;
+  transition: background 0.2s;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item.is-unread {
+  background: #F8FBFA;
+}
+
+.notification-item:hover {
+  background: #F1F6F3;
+}
+
+.notification-item-icon {
+  width: 37px;
+  height: 37px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notification-item-title strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.notification-unread-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #245B70;
+}
+
+.notification-item-content > p {
+  margin-top: 4px;
+  color: #718096;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.notification-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  color: #84918D;
+  font-size: 9px;
+}
+
+.notification-item-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notification-empty {
+  min-height: 170px;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #718096;
+  text-align: center;
+}
+
+.notification-empty > svg {
+  color: #6F9B8D;
+}
+
+.notification-empty strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.notification-empty p {
+  max-width: 260px;
+  color: #718096;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.notification-empty button {
+  margin-top: 5px;
+  padding: 8px 13px;
+  border: none;
+  border-radius: 8px;
+  background: #245B70;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-error > svg {
+  color: #C45B55;
+}
+
+.notification-panel-footer {
+  padding: 11px 15px;
+  border-top: 1px solid #EEF1EF;
+  background: #FAFCFB;
+  color: #94A3A0;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .notification-panel {
+    position: fixed;
+    top: 72px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    max-width: none;
+  }
+}
+
+/* =========================================================
+   DATA BUKU — STATISTIK HORIZONTAL
+   ========================================================= */
+
+.book-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.book-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding: 19px 22px;
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(36, 91, 112, 0.07);
+}
+
+.book-summary > div svg {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 9px;
+  border-radius: 11px;
+  background: #E8F0F1;
+  color: #245B70;
+}
+
+.book-summary > div:nth-child(2) svg {
+  background: #EAF1ED;
+  color: #6F9B8D;
+}
+
+.book-summary > div:nth-child(3) svg {
+  background: #FBF3E2;
+  color: #B8872E;
+}
+
+.book-summary > div span {
+  flex: 1;
+  min-width: 0;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.book-summary > div strong {
+  color: #334155;
+  font-size: 25px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .book-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .book-summary > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 13px;
+  }
+
+  .book-summary > div strong {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   DATA ANGGOTA — STATISTIK HORIZONTAL
+   ========================================================= */
+
+.member-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.member-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding: 19px 22px;
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(36, 91, 112, 0.07);
+}
+
+.member-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 9px;
+  border-radius: 11px;
+  background: #E8F0F1;
+  color: #245B70;
+}
+
+.member-summary-icon.active {
+  background: #EAF1ED;
+  color: #6F9B8D;
+}
+
+.member-summary-icon.inactive {
+  background: #FBF3E2;
+  color: #B8872E;
+}
+
+.member-summary-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-summary-content span {
+  display: block;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.member-summary-content h3 {
+  margin: 5px 0 0;
+  color: #334155;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .member-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .member-summary-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 13px;
+  }
+
+  .member-summary-content h3 {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   HEADER — SATU BARIS DAN LEBIH RINGKAS
+   ========================================================= */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  min-height: 68px;
+}
+
+.topbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.topbar-heading .breadcrumb {
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.topbar-heading h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.global-search-container {
+  width: 230px;
+  flex-shrink: 1;
+}
+
+.search-box {
+  min-height: 38px;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.search-box input {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  flex-shrink: 0;
+}
+
+.profile-info strong {
+  font-size: 13px;
+}
+
+.profile-info span {
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .top-actions {
+    gap: 8px;
+  }
+
+  .global-search-container {
+    width: 190px;
+  }
+}
+
+@media (max-width: 650px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .topbar-heading {
+    width: 100%;
+  }
+
+  .top-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .global-search-container {
+    flex: 1;
+    width: auto;
+  }
+}
+
+/* =========================================================
+   RINGKASAN PEMINJAMAN — MENGIKUTI DESAIN DATA ANGGOTA
+   ========================================================= */
+
+.loan-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.loan-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding: 19px 22px;
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(36, 91, 112, 0.07);
+}
+
+.loan-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 9px;
+  border-radius: 11px;
+  background: #E8F0F1;
+  color: #245B70;
+}
+
+.loan-summary-icon.returned {
+  background: #EAF1ED;
+  color: #6F9B8D;
+}
+
+.loan-summary-icon.late {
+  background: #FBF3E2;
+  color: #B8872E;
+}
+
+.loan-summary-icon.borrowed {
+  background: #F0ECFA;
+  color: #8066B0;
+}
+
+.loan-summary-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.loan-summary-info span {
+  display: block;
+  color: #718096;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.loan-summary-info h2 {
+  margin: 5px 0 0;
+  color: #334155;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+/* Tablet dan HP */
+@media (max-width: 760px) {
+  .loan-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .loan-summary-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 13px;
+  }
+
+  .loan-summary-info h2 {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   PENYESUAIAN SEARCH DATA ANGGOTA
+   Menyamakan posisi dengan Search Data Buku
+   ========================================================= */
+
+.member-page .data-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 21px;
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(36, 91, 112, 0.07);
+}
+
+/* Judul daftar anggota */
+.member-page .data-card-heading {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0;
+  min-width: 0;
+}
+
+.member-page .data-card-heading h3 {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.member-page .member-total-badge {
+  flex-shrink: 0;
+}
+
+/* Search dan filter */
+.member-page .member-toolbar {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+}
+
+.member-page .member-toolbar .book-search {
+  width: 260px;
+  min-width: 180px;
+  min-height: 38px;
+  padding: 0 10px;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E4E9E7;
+  border-radius: 10px;
+}
+
+.member-page .member-toolbar .book-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+}
+
+.member-page .member-toolbar .book-search svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #94A3A0;
+}
+
+.member-page .member-filter-label {
+  flex-shrink: 0;
+}
+
+.member-page .member-toolbar select {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #E4E9E7;
+  border-radius: 9px;
+  background: #FFFFFF;
+  color: #334155;
+  font-size: 12px;
+}
+
+/* Tabel anggota berada di bawah judul dan search */
+.member-page .data-card > .table-wrapper {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  margin: 0;
+}
+
+/* Efek saat search diklik */
+.member-page .member-toolbar .book-search:focus-within {
+  border-color: #6F9B8D;
+  box-shadow: 0 0 0 3px rgba(111, 155, 141, 0.12);
+}
+
+/* Tampilan tablet dan HP */
+@media (max-width: 900px) {
+  .member-page .data-card {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .member-page .data-card-heading,
+  .member-page .member-toolbar,
+  .member-page .data-card > .table-wrapper {
+    grid-column: 1;
+  }
+
+  .member-page .data-card-heading {
+    grid-row: 1;
+  }
+
+  .member-page .member-toolbar {
+    grid-row: 2;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .member-page .data-card > .table-wrapper {
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 520px) {
+  .member-page .member-toolbar {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .member-page .member-toolbar .book-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .member-page .member-toolbar select {
+    width: 100%;
+  }
+}
+
+/* =====================================
+   BRAND LOGO PUSTAKARA
+   ===================================== */
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 22px 20px;
+  min-height: 82px;
+  box-sizing: border-box;
+}
+
+.sidebar .brand-icon {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid rgba(36, 91, 112, 0.12);
+  border-radius: 15px;
+  padding: 5px;
+  box-sizing: border-box;
+  box-shadow: 0 3px 10px rgba(25, 72, 90, 0.09);
+  overflow: hidden;
+  color: #245B70;
+}
+
+.sidebar .brand-logo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 9px;
+}
+
+.sidebar .brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.sidebar .brand-text h2 {
+  margin: 0;
+  color: #245B70;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  line-height: 1.2;
+}
+
+.sidebar .brand-text span {
+  display: block;
+  color: #82939B;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.35px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .sidebar .brand {
+    gap: 10px;
+    padding: 17px 15px;
+  }
+
+  .sidebar .brand-icon {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+  }
+
+  .sidebar .brand-text h2 {
+    font-size: 19px;
+  }
 }
