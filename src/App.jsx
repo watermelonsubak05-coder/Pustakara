@@ -1,9 +1,9 @@
-
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   BookOpen,
   Users,
+  Menu,
   ArrowLeftRight,
   ClipboardList,
   ChartNoAxesCombined,
@@ -79,6 +79,7 @@ const monthNames = [
 
 function App() {
   const [activePage, setActivePage] = useState("Dashboard");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
 
@@ -244,6 +245,8 @@ function App() {
 
   // Mengatur perpindahan menu
   function selectMenu(menuName) {
+    setMobileSidebarOpen(false);
+
     const allowed = availableMenus.some(
       (item) => item.name === menuName
     );
@@ -517,8 +520,17 @@ Terima kasih.`;
   }
 
   return (
-    <div className="app">
-      <aside className="sidebar">
+    <div className={`app ${mobileSidebarOpen ? "sidebar-open" : ""}`}>
+      {mobileSidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-label="Tutup menu navigasi"
+        />
+      )}
+
+      <aside className={`sidebar ${mobileSidebarOpen ? "sidebar-visible" : ""}`}>
 
         {/* BRAND PUSTAKARA */}
         <div className="brand">
@@ -593,6 +605,16 @@ Terima kasih.`;
 
         {/* HEADER */}
         <header className="topbar">
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Buka menu navigasi"
+            aria-expanded={mobileSidebarOpen}
+          >
+            <Menu size={22} />
+          </button>
+
           <div className="topbar-heading">
             <span className="breadcrumb">Halaman /</span>
             <h2>{activePage}</h2>

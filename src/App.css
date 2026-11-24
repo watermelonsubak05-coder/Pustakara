@@ -2976,3 +2976,238 @@ footer {
     font-size: 19px;
   }
 }
+/* =====================================================
+   PUSTAKARA - RESPONSIVE MOBILE NAVIGATION
+   Perbaikan sidebar dan layout utama
+   ===================================================== */
+
+/* Tombol hamburger */
+.mobile-menu-toggle {
+  display: none;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E4E9E7;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #245B70;
+  cursor: pointer;
+}
+
+/* Lapisan gelap di belakang sidebar */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* Mencegah area utama melebar melebihi layar */
+.app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;
+}
+
+/* TABLET DAN HP */
+@media (max-width: 900px) {
+  .app {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(285px, 85vw) !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 10001;
+    transform: translateX(-105%);
+    transition: transform 0.28s ease;
+    box-shadow: none;
+  }
+
+  .sidebar.sidebar-visible {
+    transform: translateX(0);
+    box-shadow: 10px 0 35px rgba(20, 40, 45, 0.15);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(15, 25, 30, 0.45);
+    cursor: pointer;
+  }
+
+  .main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .topbar {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .topbar-heading {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .top-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* HP */
+@media (max-width: 600px) {
+  .topbar {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-heading h2 {
+    font-size: 17px;
+  }
+
+  .top-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .global-search-container {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .search-box {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .search-box input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .profile-info {
+    display: none;
+  }
+
+  .main > .content,
+  .main > .page-content {
+    width: 100%;
+    min-width: 0;
+    padding: 18px 14px;
+  }
+}
+
+/* HP KECIL */
+@media (max-width: 380px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .mobile-menu-toggle {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .topbar-heading h2 {
+    font-size: 15px;
+  }
+
+  .top-actions {
+    gap: 6px;
+  }
+
+  .main > .content,
+  .main > .page-content {
+    padding: 14px 10px;
+  }
+}/* =========================================
+   PERBAIKAN TABEL RESPONSIF DI HP
+   ========================================= */
+
+/* Wadah tabel */
+.table-container,
+.table-wrapper,
+.data-table-container,
+.table-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+/* Berikan lebar minimum agar tabel bisa digeser */
+.table-container table,
+.table-wrapper table,
+.data-table-container table,
+.table-scroll table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+
+/* Tampilan khusus HP */
+@media (max-width: 768px) {
+  .table-container,
+  .table-wrapper,
+  .data-table-container,
+  .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+  }
+
+  .table-container table,
+  .table-wrapper table,
+  .data-table-container table,
+  .table-scroll table {
+    min-width: 700px;
+  }
+
+  .table-container th,
+  .table-container td,
+  .table-wrapper th,
+  .table-wrapper td,
+  .data-table-container th,
+  .data-table-container td,
+  .table-scroll th,
+  .table-scroll td {
+    white-space: nowrap;
+  }
+}
