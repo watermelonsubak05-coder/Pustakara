@@ -1,0 +1,52 @@
+
+name: PUSTAKARA - Supabase Database Check
+
+on:
+  schedule:
+    # Berjalan pukul 08.00, 16.00, dan 00.00 WIB
+    - cron: "0 1,9,17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-database-check
+  cancel-in-progress: false
+
+jobs:
+  database-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Supabase database activity
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+        run: |
+          set -e
+
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Supabase secrets belum diatur."
+            exit 1
+          fi
+
+          SUPABASE_URL="${SUPABASE_URL%/}"
+
+          echo "Menghubungi database PUSTAKARA..."
+
+          curl \
+            --silent \
+            --show-error \
+            --fail \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --output /dev/null \
+            --write-out "HTTP Status: %{http_code}\n" \
+            --header "apikey: $SUPABASE_ANON_KEY" \
+            --header "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/books?select=id&limit=1"
+
+          echo "Pengecekan database selesai."
